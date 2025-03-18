@@ -83,9 +83,9 @@ class AES:
         :param key: Key as bytes (16, 24, or 32 bytes).
         """
         self.key = key
+        len_key = len(key)
         self.expanded_key = self.key_expansion(key)
-        self.Nr = AES.KEY_SIZES[len[key]][1]
-        pass
+        self.Nr = AES.KEY_SIZES[len_key][1]
 
 
     # =============================================================================
@@ -97,14 +97,27 @@ class AES:
         """
         Apply the S-Box to a 4-byte word.
         """
-        pass
+        bytess = []
+        for i in range(4):
+            bytess.append((word >> 24-8*(i)) & 0xff  )
+
+        bytess = list(map(lambda x:AES.S_BOX[x],bytess))
+        res = 0
+        for i in range(4):
+            res|= bytess[i] << (8*(3-i))
+
+        return res
 
     @staticmethod
     def rot_word(word: int) -> int:
         """
         Cyclically permute the bytes of a word.
         """
-        pass
+        bytess = []
+        for i in range(4):
+            bytess.append((word >> 24-8*(i)) & 0xff  )
+
+        return (bytess[1] << 24) | (bytess[2] << 16) | (bytess[3] << 8) | bytess[0]
 
     @staticmethod
     def bytes_to_matrix(b: bytes) -> List[List[int]]:
@@ -112,28 +125,44 @@ class AES:
         Converts a 16, 24, or 32-byte array into a 4xNb matrix (column-major order).
 
         """
-        pass
+        m = []
+        for i in range(4):
+            m.append([])
+        for col in range(4):
+            for i in range(4):
+                m[i].append(b[col*4+i])
+        return m
 
     @staticmethod
     def matrix_to_bytes(matrix: List[List[int]]) -> bytes:
         """
         Converts a 4xNb matrix back to a bytes object.
         """
-        pass
+        b = []
+        for col in range(4):
+            for i in range(4):
+                b.append(matrix[i][col])
+
+        return bytes(b)
 
     @staticmethod
     def xor_bytes(a: bytes, b: bytes) -> bytes:
         """
         XOR two byte strings of the same length.
         """
-        pass
+        ret = []
+        for i in range(len(a)):
+            ret.append(a[i]^b[i])
+        return ret
 
     @staticmethod
     def pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
         """
         Applies PKCS7 padding to make data a multiple of the block size.
         """
-        pass
+        padding_length = block_size - (len(data) % block_size)
+        padding = bytes([padding_length] * padding_length)
+        return data + padding
 
     @staticmethod
     def pkcs7_unpad(data: bytes) -> bytes:
@@ -142,7 +171,8 @@ class AES:
         """
         if not data:
             return data
-        pass
+        padding_length = data[-1]
+        return data[:-padding_length]
 
     # =============================================================================
     #                          KEY EXPANSION
@@ -192,14 +222,17 @@ class AES:
         """
         Substitute each byte in the state with the S-Box.
         """
-        pass
+        map(lambda row: lambda y: AES.S_BOX[row[y]],state)
 
     @staticmethod
     def shift_rows(state: List[List[int]]) -> None:
         """
         Shift rows to the left
         """
-        pass
+        state[1] = state[1][1:] + state[1][:1]
+        state[2] = state[2][2:] + state[2][:2]
+        state[3] = state[3][3:] + state[3][:3]
+
 
     @staticmethod
     def xtime(a: int) -> int:
@@ -217,7 +250,16 @@ class AES:
         Mix columns in the state by performing matrix multiplication in GF(2^8).
         Uses AES.xtime().
         """
-        pass
+        for i in range(4):
+            s0,s1,s2,s3 = [state[0][i],state[1][i],state[2][i],state[3][i]]
+
+            t0 = AES.xtime(s0) ^ AES.xtime(s1) ^ s1 ^ s2 ^ s3
+            t1 = s0 ^ AES.xtime(s1) ^ AES.xtime(s2) ^ s2 ^ s3
+            t2 = s0 ^ s1 ^ AES.xtime(s2) ^ AES.xtime(s3) ^ s3
+            t3 = AES.xtime(s0) ^ s0 ^ s1 ^ s2 ^ AES.xtime(s3)
+
+            state[0][i],state[1][i],state[2][i],state[3][i] = t0,t1,t2,t3
+        
 
     @staticmethod
     def add_round_key(state: List[List[int]], round_key: List[int], round_idx: int) -> None:
@@ -225,17 +267,30 @@ class AES:
         XOR the state with the round key.
         """
         # Each round key is 4 words = 4 x 32 bits = 16 bytes
-        pass
+        for i in range(4):
+            byts = [state[0][i],state[1][i],state[2][i],state[3][i]]
+            word = AES.xor_bytes(bytes(byts),round_key[round_idx*4+i].to_bytes(4,byteorder='big'))
+            state[0][i],state[1][i],state[2][i],state[3][i] = word[:]
 
     @staticmethod
-    def encrypt_block(plaintext_block: bytes, expanded_key: List[int]) -> bytes:
+    def encrypt_block(plaintext_block: bytes, expanded_key: List[int],num_round:int) -> bytes:
         """
         Encrypt a single 16-byte block using AES (128, 192, or 256).
         """
         # Convert plaintext block to state matrix
         state = AES.bytes_to_matrix(plaintext_block)
 
-        #TODO SOME OPERATIONS
+        AES.add_round_key(state,expanded_key,0)
+
+        for i in range(1,num_round):
+            AES.sub_bytes(state)
+            AES.shift_rows(state)
+            AES.mix_columns(state)
+            AES.add_round_key(state,expanded_key,i)
+        
+        AES.sub_bytes(state)
+        AES.shift_rows(state)
+        AES.add_round_key(state,expanded_key,num_round)
 
         return AES.matrix_to_bytes(state)
     
@@ -248,14 +303,16 @@ class AES:
         """
         Inverse S-Box substitution for decryption.
         """
-        pass
+        map(lambda row: lambda y: AES.INV_S_BOX[row[y]],state)
 
     @staticmethod
     def inv_shift_rows(state: List[List[int]]) -> None:
         """
         Inverse shift rows to the right
         """
-        pass
+        state[1] = state[1][-1:] + state[1][:-1]
+        state[2] = state[2][-2:] + state[2][:-2]
+        state[3] = state[3][-3:] + state[3][:-3]
 
     @staticmethod
     def mul(a: int, b: int) -> int:
@@ -302,14 +359,24 @@ class AES:
 
 
     @staticmethod
-    def decrypt_block(ciphertext_block: bytes, expanded_key: List[int]) -> bytes:
+    def decrypt_block(ciphertext_block: bytes, expanded_key: List[int],num_round: int) -> bytes:
         """
         Decrypt a single 16-byte block using AES (128, 192, or 256).
         """
         # Convert ciphertext block to state matrix
         state = AES.bytes_to_matrix(ciphertext_block)
 
-        #TODO SOME OPERATIONS
+        AES.add_round_key(state, expanded_key, num_round)
+
+        for i in range(num_round - 1, 0, -1):
+            AES.inv_shift_rows(state)
+            AES.inv_sub_bytes(state)
+            AES.add_round_key(state, expanded_key, i)
+            AES.inv_mix_columns(state)
+        
+        AES.inv_shift_rows(state)
+        AES.inv_sub_bytes(state)
+        AES.add_round_key(state, expanded_key, 0)
 
         return AES.matrix_to_bytes(state)
 
@@ -324,7 +391,15 @@ class AES:
 
         :return: Ciphertext as bytes.
         """
-        pass
+        block_size = 16
+        num_block = len(plaintext) // block_size
+        results = []
+        for i in range(num_block):
+            start = i * block_size
+            results.append(AES.encrypt_block(plaintext[start:start+block_size],self.expanded_key,self.Nr))
+        if num_block * 128 != len(plaintext):
+            results.append(AES.encrypt_block(AES.pkcs7_pad(plaintext[num_block*block_size:]),self.expanded_key,self.Nr))
+        return b''.join(results)
 
     def decrypt(self, ciphertext: bytes) -> bytes:
         """
@@ -333,7 +408,15 @@ class AES:
 
         :return: Decrypted plaintext as bytes (unpadded).
         """
-        pass
+        block_size = 16
+        num_blocks = len(ciphertext) // block_size
+        results = []
+        for i in range(num_blocks):
+            start = i * block_size
+            block = ciphertext[start:start + block_size]
+            results.append(AES.decrypt_block(block, self.expanded_key, self.Nr))
+        plaintext = b''.join(results)
+        return AES.pkcs7_unpad(plaintext)
 
 def main(): # SINGLE TEST FOR CORRECT FUNCTIONALITY
     """
@@ -343,25 +426,26 @@ def main(): # SINGLE TEST FOR CORRECT FUNCTIONALITY
     3. Print ciphertext in hex.
     4. Decrypt and print final plaintext.
     """
-    input_string = "Hello, AES from scratch with 256-bit key!"
+    input_string = "Hello, AES from scratch with 256-bit key?"
     print("Original plaintext:", input_string)    
     # Convert to bytes
     plaintext = input_string.encode("utf-8")
     
     #  You can also try 16 or 24 bytes for 128 or 192 bits.
-    key = b"24ByteKeyForAES!!!!!!!!!"  
+    key = b"xQOzaF0eypaierZmCQxuHyvv"
+    print(f"Key: {key}")  
 
     # Create an AES instance with the given key
     aes_instance = AES(key)
     # Encrypt
     ciphertext = aes_instance.encrypt(plaintext)
     print("Ciphertext (hex):", ciphertext.hex())
-    
+
     # Decrypt
     decrypted = aes_instance.decrypt(ciphertext)
     print("Decrypted plaintext:", decrypted.decode("utf-8"))
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
 
