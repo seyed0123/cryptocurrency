@@ -143,6 +143,8 @@ class DES:
         22, 11, 4,  25
     ]
 
+    num_round = 16
+
     def __init__(self, key: bytes, method: str = "xor_based"):
         """
         Initialize DES instance with the given 8-byte key.
@@ -249,7 +251,7 @@ class DES:
         C = key_56[:28]
         D = key_56[28:]
         subkeys = []
-        for i in range(16):
+        for i in range(DES.num_round):
             C = DES._left_rotate(C,DES.SHIFT_TABLE[i])
             D = DES._left_rotate(D,DES.SHIFT_TABLE[i])
 
@@ -276,17 +278,12 @@ class DES:
         :return: 32-bit transformed output.
         """
         if method == "xor_based":
-            #TODO
             return DES._xor_bits(r_bits,subkey[:32])
-            pass
 
         elif method == "and_based":
-            #TODO
             return DES._and_bits(r_bits,subkey[:32])
-            pass
 
         elif method == "standard":
-            #TODO
             expaned_r = DES._permute(r_bits,DES.E_TABLE)
 
             xor_bits = DES._xor_bits(expaned_r,subkey)
@@ -323,9 +320,10 @@ class DES:
 
         permuted_block = self._permute(block_bits,DES.IP_TABLE)
 
-        L, R = permuted_block[:32], permuted_block[32:]
+        L = permuted_block[:32]
+        R = permuted_block[32:]
 
-        for round in range(16):
+        for round in range(DES.num_round):
             L , R = R , self._xor_bits(self.feistel_function(R,self.subkeys[round],method=self.method),L)
 
         combined = R + L
@@ -343,18 +341,17 @@ class DES:
 
         permuted_block = self._permute(block_bits,DES.IP_TABLE)
 
-        L,R = permuted_block[:32],permuted_block[:32]
+        L = permuted_block[:32]
+        R = permuted_block[32:]
 
-        for round in range(16):
-            dec_round = 15-round
+        for round in range(DES.num_round):
+            dec_round = DES.num_round - round -1
             L , R = R , self._xor_bits(self.feistel_function(R,self.subkeys[dec_round],method=self.method),L)
 
         combined = R + L
         ciphertext_bits = self._permute(combined, DES.FP_TABLE)
         ciphertext_int = DES._bits_to_int(ciphertext_bits)
         return ciphertext_int.to_bytes(8,'big')
-    
-        pass
 
     def encrypt(self, plaintext: bytes) -> bytes:
         """
@@ -401,8 +398,9 @@ def main():  # SINGLE TEST FOR CORRECT FUNCTIONALITY
     3. Prints the encrypted bytes in hex.
     4. Decrypts and prints the final plaintext.
     """
-    method = "xor_based"
+    method = "standard"
     input_string = "Hello, DES from scratch!"
+    # input_string = "Hello, D"
     plaintext = input_string.encode("utf-8")
 
     # 8-byte key (64 bits). 
