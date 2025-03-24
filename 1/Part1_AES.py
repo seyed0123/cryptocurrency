@@ -222,7 +222,9 @@ class AES:
         """
         Substitute each byte in the state with the S-Box.
         """
-        map(lambda row: lambda y: AES.S_BOX[row[y]],state)
+        for row in state:
+            for i in range(len(row)):
+                row[i] = AES.S_BOX[row[i]]
 
     @staticmethod
     def shift_rows(state: List[List[int]]) -> None:
@@ -303,7 +305,9 @@ class AES:
         """
         Inverse S-Box substitution for decryption.
         """
-        map(lambda row: lambda y: AES.INV_S_BOX[row[y]],state)
+        for row in state:
+            for i in range(len(row)):
+                row[i] = AES.INV_S_BOX[row[i]]
 
     @staticmethod
     def inv_shift_rows(state: List[List[int]]) -> None:
@@ -392,13 +396,14 @@ class AES:
         :return: Ciphertext as bytes.
         """
         block_size = 16
-        num_block = len(plaintext) // block_size
+        padded_plaintext = AES.pkcs7_pad(plaintext, block_size)
+        num_blocks = len(padded_plaintext) // block_size
         results = []
-        for i in range(num_block):
-            start = i * block_size
-            results.append(AES.encrypt_block(plaintext[start:start+block_size],self.expanded_key,self.Nr))
-        if num_block * 128 != len(plaintext):
-            results.append(AES.encrypt_block(AES.pkcs7_pad(plaintext[num_block*block_size:]),self.expanded_key,self.Nr))
+        for i in range(num_blocks):
+            start = i* block_size
+            block = padded_plaintext[start: start+block_size]
+            encrypted_block = AES.encrypt_block(block, self.expanded_key, self.Nr)
+            results.append(encrypted_block)
         return b''.join(results)
 
     def decrypt(self, ciphertext: bytes) -> bytes:
@@ -427,6 +432,7 @@ def main(): # SINGLE TEST FOR CORRECT FUNCTIONALITY
     4. Decrypt and print final plaintext.
     """
     input_string = "Hello, AES from scratch with 256-bit key?"
+    # input_string = input()
     print("Original plaintext:", input_string)    
     # Convert to bytes
     plaintext = input_string.encode("utf-8")
@@ -446,6 +452,6 @@ def main(): # SINGLE TEST FOR CORRECT FUNCTIONALITY
     print("Decrypted plaintext:", decrypted.decode("utf-8"))
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
 
