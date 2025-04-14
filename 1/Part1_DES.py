@@ -277,11 +277,16 @@ class DES:
                        - "and_based": AND-Based Fesitel function (simple AND with subkey)
         :return: 32-bit transformed output.
         """
+        # INSIDE feistel_function METHOD
         if method == "xor_based":
-            return DES._xor_bits(r_bits,subkey[:32])
+            expanded = DES._permute(r_bits, DES.E_TABLE)  
+            xored = DES._xor_bits(expanded, subkey)         
+            return xored[:32]  
 
         elif method == "and_based":
-            return DES._and_bits(r_bits,subkey[:32])
+            expanded = DES._permute(r_bits, DES.E_TABLE)  
+            and_result = [rb & sk for rb, sk in zip(expanded, subkey)]  
+            return and_result[:32]  
 
         elif method == "standard":
             expaned_r = DES._permute(r_bits,DES.E_TABLE)
@@ -399,21 +404,25 @@ def main():  # SINGLE TEST FOR CORRECT FUNCTIONALITY
     4. Decrypts and prints the final plaintext.
     """
     method = "standard"
-    input_string = "Hello, DES from scratch!"
+    # input_string = "Hello, DES from scratch!"
+    input_string = input()
     # input_string = "Hello, D"
     plaintext = input_string.encode("utf-8")
 
     # 8-byte key (64 bits). 
     #NOTE: Only 56 bits are effectively used; the rest are parity bits.
-    key = b"9017rMne"
-    print("Original plaintext:", input_string)
+    key = b"7CiVm05j"
+    # print("Original plaintext:", input_string)
     des_instance = DES(key, method)
     # Encrypt
-    encrypted = des_instance.encrypt(plaintext)
-    print("Encrypted (hex):", encrypted.hex())
+    h = int(input_string,16)
+    cipher = bytes.fromhex(input_string)
+    # encrypted = des_instance.encrypt(plaintext)
+    # print("Encrypted (hex):", encrypted.hex())
     # Decrypt
-    decrypted = des_instance.decrypt(encrypted)
+    decrypted = des_instance.decrypt(cipher)
     print("Decrypted plaintext:", decrypted.decode("utf-8"))
     
 if __name__ == "__main__":
-    main()
+    'this is the main func'
+    # main()

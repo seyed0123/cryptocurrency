@@ -20,7 +20,7 @@ class DSA:
         sha256.update(self.message)
         return int.from_bytes(sha256.digest(), byteorder='big')
 
-    def sign(self,k:int = None) -> Tuple[str, str, str]:
+    def sign(self,k:int = 0x358d182f103d110f6e957ee3b88c09785aa76476) -> Tuple[str, str, str]:
         """
         Generate DSA signature and return r, s, and y
         Use k = 0x358d182f103d110f6e957ee3b88c09785aa76476 for testing
@@ -40,13 +40,16 @@ class DSA:
         self.s = s
         self.y = pow(self.g, self.x, self.p)
 
-        return (hex(r)[2:], hex(s)[2:], hex(self.y)[2:])
+        return (hex(self.r)[2:], hex(self.s)[2:], hex(self.y)[2:])
         
 
     def verify(self) -> bool:
         """Verify DSA signature"""
         if not (0 < self.r < self.q) or not (0 < self.s < self.q):
                     return False
+        
+        if not (0 < self.y < self.p) or not (pow(self.y, self.q, self.p) == 1):
+            return False
         
         w = pow(self.s, -1, self.q)
         h = self.hash_message()
@@ -67,7 +70,7 @@ params = {
 
 # Sign a message
 dsa = DSA(params)
-r, s, y = dsa.sign(k=0x358d182f103d110f6e957ee3b88c09785aa76476)
+r, s, y = dsa.sign()
 print(f"Signature (r, s, y):\n{r}\n{s}\n{y}")
 
 # Verify the signature

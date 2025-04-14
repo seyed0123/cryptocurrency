@@ -87,7 +87,8 @@ class RSA:
         return b''.join(res)
 
 if __name__ == "__main__":
-    rsa = RSA(bit_size=16)  # Smaller bit size for demonstration purposes
+    'this is the main func'
+    rsa = RSA(bit_size=128,p = 305416400905440115772647883216561380153,q= 184591891995343037399549487648794439563)  # Smaller bit size for demonstration purposes
     message = b"Hello, RSA encryption with chunking!"
     
     # Encrypt the message

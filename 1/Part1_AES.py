@@ -128,9 +128,9 @@ class AES:
         m = []
         for i in range(4):
             m.append([])
-        for col in range(4):
+        for row in range(4):
             for i in range(4):
-                m[i].append(b[col*4+i])
+                m[row].append(b[row*4+i])
         return m
 
     @staticmethod
@@ -139,9 +139,8 @@ class AES:
         Converts a 4xNb matrix back to a bytes object.
         """
         b = []
-        for col in range(4):
-            for i in range(4):
-                b.append(matrix[i][col])
+        for row in matrix:
+            b.extend(row)
 
         return bytes(b)
 
@@ -453,5 +452,6 @@ def main(): # SINGLE TEST FOR CORRECT FUNCTIONALITY
 
 
 if __name__ == "__main__":
-    main()
+    'this is the main func'
+    # main()
 
