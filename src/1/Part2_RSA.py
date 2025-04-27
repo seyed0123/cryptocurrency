@@ -7,7 +7,7 @@ class RSA:
     Supports encryption and decryption with *chunking*.
     """
 
-    def __init__(self, bit_size: int = 1024, e: int = 65537,p=None, q=None, seed=42):
+    def __init__(self, bit_size: int = 1024,p=None, q=None, e: int = 65537, seed=42):
         """
         Initialize RSA with a specified bit_size for p and q.
 
@@ -26,7 +26,7 @@ class RSA:
         self.n = p * q
         self.phi = (p - 1) * (q - 1)
         if sympy.gcd(e,self.n)!=1:
-            raise ValueError("e must be coprime with φ(n)")
+            raise ValueError("e must be coprime with totient(n)")
         self.e = e
         self.d = pow(e,-1,self.phi)
 
@@ -88,7 +88,7 @@ class RSA:
 
 if __name__ == "__main__":
     'this is the main func'
-    rsa = RSA(bit_size=128,p = 305416400905440115772647883216561380153,q= 184591891995343037399549487648794439563)  # Smaller bit size for demonstration purposes
+    rsa = RSA(bit_size=7680)  # Smaller bit size for demonstration purposes
     message = b"Hello, RSA encryption with chunking!"
     
     # Encrypt the message
