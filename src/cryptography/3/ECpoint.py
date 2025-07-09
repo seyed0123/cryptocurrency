@@ -39,11 +39,8 @@ class EllipticCurve:
         y3 = (m*(x1-x3)-y1)%self.p
         return (x3,y3)
         
-a, b, p = 3,7,5
+a, b, p = 171,853,2671
 curve = EllipticCurve(a, b, p)
-P = (1,0)
-for i in [1,2,4,8]:
-    print(curve.scalar_multiplication(i, P))
-# result = curve.scalar_multiplication(4, P)
-# result should be (10, 2). a tuple.
-# print(result)
+P = (2,2575)
+n = 875
+print(curve.scalar_multiplication(n, P))
