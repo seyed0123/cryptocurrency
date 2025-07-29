@@ -2,10 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {Chainlink, ChainlinkClient} from "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import "contracts/StockToken.sol";
 
 /// @title Stock Market contract acting as a factory and controller
-contract StockMarket is Ownable {
+contract StockMarket is Ownable, ChainlinkClient {
+    using Chainlink for Chainlink.Request;
     struct Stock {
         string name;
         address token;
@@ -15,11 +17,36 @@ contract StockMarket is Ownable {
 
     mapping(string => Stock) public stocks; // symbol => Stock
     mapping(string => bool) public registered;
+    mapping(bytes32 => string) public requestIdToSymbol;
+    address public oracle;
+    bytes32 public jobId;
+    uint256 private constant ORACLE_PAYMENT = (1 * LINK_DIVISIBILITY) / 10;
+    
+
 
     event StockAdded(string symbol, address tokenAddress);
     event PriceUpdated(string symbol, uint256 price, uint256 timestamp);
 
-    constructor() Ownable(msg.sender) {}
+    constructor(string memory jobId_, address oracle_) Ownable(msg.sender) {
+        _setChainlinkToken(0x779877A7B0D9E8603169DdbD7836e478b4624789);
+
+        jobId = stringToBytes32(jobId_);
+        oracle = oracle_;
+    }
+
+    function stringToBytes32(
+        string memory source
+    ) private pure returns (bytes32 result) {
+        bytes memory tempEmptyStringTest = bytes(source);
+        if (tempEmptyStringTest.length == 0) {
+            return 0x0;
+        }
+
+        assembly {
+            // solhint-disable-line no-inline-assembly
+            result := mload(add(source, 32))
+        }
+    }
 
     /// @notice Add a new stock and deploy its ERC20 token
     function addStock(string calldata symbol, string calldata name) external onlyOwner {
@@ -36,6 +63,47 @@ contract StockMarket is Ownable {
         registered[symbol] = true;
         emit StockAdded(symbol, address(token));
     }
+
+    function requestPriceUpdate(string memory symbol) public onlyOwner returns (bytes32 requestId) {
+        require(registered[symbol], "Stock not registered");
+
+        string memory url = string(
+            abi.encodePacked(
+                "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=",
+                symbol,
+                "&apikey=9EYH50S2XRUVP7HM"
+            )
+        );
+
+        Chainlink.Request memory req = _buildChainlinkRequest(
+            jobId,
+            address(this),
+            this.fulfillPrice.selector
+        );
+
+        req._add("get", url);
+        req._add("path", "Global Quote.05. price");
+
+        requestId = _sendChainlinkRequestTo(oracle, req, ORACLE_PAYMENT);
+
+        requestIdToSymbol[requestId] = symbol;
+    }
+
+    /// @notice Callback function for Chainlink oracle to fulfill price data
+    function fulfillPrice(
+        bytes32 _requestId,
+        uint256 _price
+    ) public recordChainlinkFulfillment(_requestId) {
+        string memory symbol = requestIdToSymbol[_requestId];
+        require(registered[symbol], "Invalid symbol in fulfillment");
+
+        stocks[symbol].lastPrice = _price;
+        stocks[symbol].lastUpdated = block.timestamp;
+
+        emit PriceUpdated(symbol, _price, block.timestamp);
+    }
+
+
 
     /// @notice Update price manually (placeholder, to be replaced with Chainlink integration)
     function updatePrice(string calldata symbol, uint256 newPrice) external onlyOwner {
