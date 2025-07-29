@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres
+    container_name: postgres
+    networks:
+      - chainlink-net
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: chainlink
+      POSTGRES_PASSWORD: mysecretkeystorepassword
+      POSTGRES_DB: chainlink
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  chainlink:
+    image: smartcontract/chainlink:2.25.0
+    container_name: chainlink
+    depends_on:
+      - postgres
+    ports:
+      - "6688:6688"
+    networks:
+      - chainlink-net
+    volumes:
+      - ./chainlink:/chainlink
+    stdin_open: true     
+    tty: true      
+    command: >
+          node
+          -config /chainlink/config.toml
+          -secrets /chainlink/secrets.toml
+          start
+
+networks:
+  chainlink-net:
+
+volumes:
+  pgdata:
+  gethdata:

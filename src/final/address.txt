@@ -1,0 +1,5 @@
+oracle_address
+0x3c6cc44af625d396cd4e8f7a53ea45e440b9b518
+
+stock market_address
+0x2c2dd22be8d0456f3ba7597e7e19293d8e965ffa
